@@ -6,10 +6,12 @@ export interface CheckoutItem {
 }
 
 export interface CheckoutSnapshot {
-    total: string;
-    currency: string; // ISO 4217, e.g. "NGN"
-    items: CheckoutItem[];
+    orderId: string;
     customerName?: string;
+    customerPhone?: string;
+    total: number;
+    currency: string;
+    items: CheckoutItem[];
 }
 
 const STORAGE_KEY = "checkoutOrderId";
@@ -42,31 +44,55 @@ export function useCheckoutNotify() {
     const inFlight = useRef(false);
 
     /** Fire-and-forget. Never throws, never blocks the checkout flow. */
-    return useCallback((snapshot: CheckoutSnapshot): void => {
+    return useCallback(async (snapshot: CheckoutSnapshot): Promise<void> => {
         if (inFlight.current) return;
         inFlight.current = true;
 
         const payload = {
-            orderId: getOrderId(),
-            total: snapshot.total,
-            currency: snapshot.currency,
-            items: snapshot.items.slice(0, 50),
-            ...(snapshot.customerName
-                ? { customerName: snapshot.customerName.slice(0, 100) }
-                : {}),
-        };
+    orderId: getOrderId(),
+    ...(snapshot.customerName
+        ? { customerName: snapshot.customerName.slice(0, 100) }
+        : {}),
+    ...(snapshot.customerPhone
+        ? { customerPhone: snapshot.customerPhone.slice(0, 30) }
+        : {}),
+    total: snapshot.total,
+    currency: "NGN",
+    items: snapshot.items.slice(0, 50).map((item) => ({
+        name: item.name,
+        quantity: item.quantity,
+    })),
+};
 
-        fetch("/api/checkout", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-            keepalive: true, // lets the request finish if the page navigates to payment
-        })
-            .catch(() => {
-                /* a failed notification must never break checkout */
-            })
-            .finally(() => {
-                inFlight.current = false;
+        try {
+            const response = await fetch("/api/checkout", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                },
+                body: JSON.stringify(payload),
+                credentials: "same-origin",
+                keepalive: true,
             });
+            
+            const responseText = await response.text();
+
+            if (!response.ok) {
+                console.error("Checkout request failed:", {
+                    status: response.status,
+                    statusText: response.statusText,
+                    body: responseText,
+                });
+                return;
+            }
+
+            console.log("Checkout request succeeded:", responseText);
+            
+        } catch (error) {
+            console.error("Checkout network error:", error);
+        } finally {
+            inFlight.current = false;
+    }
     }, []);
 }

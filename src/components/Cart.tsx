@@ -2,9 +2,7 @@ import { useState } from "react";
 import CheckoutComplete from "../components/CheckoutComplete";
 import type { CartItem } from "../types";
 import { useCheckoutNotify, resetCheckoutOrderId } from "../hooks/useCheckoutNotify";
-
-const notifyCheckout = useCheckoutNotify();
-const [showComplete, setShowComplete] = useState(false);
+import CheckoutForm from "../components/CheckoutForm";
 
 interface CartProps {
     items: CartItem[];
@@ -31,6 +29,11 @@ export default function Cart({
     // const telegramLink = `https://t.me/${username}?text=${encodeURIComponent(
     //     message
     // )}`;
+    const notifyCheckout = useCheckoutNotify();
+
+    const [showComplete, setShowComplete] = useState(false);
+    const [orderId, setOrderId] = useState(() => crypto.randomUUID());
+    const [showForm, setShowForm] = useState(false);
 
     const total = items.reduce(
         (sum, item) => sum + item.price * item.quantity,
@@ -142,25 +145,33 @@ export default function Cart({
                         >
                             CLOSE
                         </button>
+                        <button 
+                        className="flex flex-1 items-center justify-center rounded-md bg-black py-3 font-medium text-white"
+                        onClick={() => setShowForm(true)}>CHECK OUT</button>
 
-                        <button
-                            className="flex flex-1 items-center justify-center rounded-md bg-black py-3 font-medium text-white"
-                            onClick={() => {
+                        <CheckoutForm
+                            open={showForm}
+                            onClose={() => setShowForm(false)}
+                            onSubmit={({ name, phone }) => {
                                 notifyCheckout({
-                                    total: total.toLocaleString(),
+                                    orderId,
+                                    total,
                                     currency: "NGN",
                                     items: items.map((i) => ({ name: i.name, quantity: i.quantity })),
+                                    customerName: name,
+                                    customerPhone: phone,
                                 });
-                             setShowComplete(true);
+                                setShowForm(false);
+                                setShowComplete(true);
                             }}
-                        >
-                            CHECK OUT
-                        </button>
+                        />
+
                         <CheckoutComplete
                             open={showComplete}
                             onClose={() => {
                                 setShowComplete(false);
                                 resetCheckoutOrderId(); // so the next checkout gets a fresh order ID
+                                setOrderId(crypto.randomUUID());
                                 // clearCart();         // if you want to empty the cart here
                             }}
                         />

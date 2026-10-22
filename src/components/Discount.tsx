@@ -83,7 +83,13 @@ export default function Discount({
                                 onClick={() => onAddToCart(product)}
                                 className="mt-4 w-full rounded-md bg-black py-3 text-sm font-medium text-white transition hover:bg-gray-800"
                             >
+                             <span className="hidden md:inline">
                                 Add to Cart
+                            </span>
+
+                            <span className="inline md:hidden">
+                                BUY +
+                            </span>
                             </button>
                         </div>
                     </article>
